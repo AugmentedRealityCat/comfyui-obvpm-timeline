@@ -367,8 +367,9 @@ class H3ResultPreview:
         else:
             sequence = rel
         if parent_rel is None and relation in ("extends", "prepends"):
-            _LOG.warning("obvpm.h3: %s %s a parent whose clip is not in "
-                         "its folder; previewing the take alone",
+            _LOG.warning("obvpm.h3: %s %s a parent whose clip could not be "
+                         "found (not in its folder, and no recorded path "
+                         "leads to it); previewing the take alone",
                          rel, relation)
         return {"ui": {"h3_result": [{
             "clip": rel, "parent": parent_rel, "parent2": parent2_rel,

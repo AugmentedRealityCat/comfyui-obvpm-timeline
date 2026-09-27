@@ -284,21 +284,28 @@ app.registerExtension({
                 };
                 if (!value) return set("", "rgba(0,0,0,0.65)", "");
                 try {
-                    const meta = await readSidecarMeta(sidecarValue(value));
-                    if (meta) {
+                    // the browser's ranged read, with the server as the
+                    // fallback when it fails (issue #15) -- no identity:
+                    // a plain video is not hashed to colour a badge
+                    const { meta, unsure, why } =
+                        await clipMetaFresh(value, false);
+                    if (meta && !meta.no_sidecar) {
                         set("mctx ✓", "rgba(30,110,50,0.85)",
-                            mctxTooltip(meta));
-                    } else {
+                            mctxTooltip(meta) + (why ? "\n" + why : ""));
+                    } else if (!unsure) {
                         set("no mctx", "rgba(170,40,40,0.85)",
-                            "No .mctx.safetensors next to this clip.\n" +
+                            "No usable .mctx.safetensors: " +
+                            (why || "none next to this clip") + ".\n" +
                             "Loads without latents (MCTX = None); extends " +
                             "must go through the pixel route.");
+                    } else {
+                        throw new Error(why);
                     }
                 } catch (err) {
                     dbg("sidecar probe failed for", value, err);
                     set("mctx ?", "rgba(190,120,30,0.85)",
-                        "A sidecar file exists but is not a readable " +
-                        `mctx_v1 sidecar (${err?.message ?? err}).`);
+                        "Could not tell whether this clip has a usable " +
+                        `mctx sidecar: ${err?.message ?? err}.`);
                 }
             }
 
@@ -2608,41 +2615,101 @@ export function themePalette() {
     };
 }
 
+// Why a clip ended up without usable sidecar metadata -- or, when the
+// browser's own read failed and the server supplied it, that it did.
+// Shown in the clip's tooltips and said once on the console, so a report
+// like issue #15 (every clip "no mctx" though the sidecars were there)
+// carries its own cause instead of needing a debugging session.
+const tlMetaWhyMap = new Map();
+const tlMetaWarned = new Set();
+function tlMetaWhy(clip) { return tlMetaWhyMap.get(clip) ?? ""; }
+
+const TL_NO_SIDECAR_REASON = {
+    missing: "no .mctx.safetensors next to this clip",
+    mismatch: "its .mctx.safetensors does not match this video "
+        + "(the MP4 changed after the take was saved)",
+    unreadable: "its .mctx.safetensors is there but could not be read",
+};
+
+// One uncached lookup: { meta, unsure, why }. `identity` asks the server
+// for a plain video's identity (hash + length) as well -- the timeline
+// needs it to name the clip as a parent; the loader badge does not, and
+// passes false so a plain video is not hashed just to colour a badge.
+async function clipMetaFresh(clip, identity = true) {
+    let m = null;
+    // Told apart deliberately: readSidecarMeta returns null when
+    // there IS no sidecar (a plain video -- a settled answer worth
+    // remembering) and THROWS when one is there but could not be
+    // read (a stale cached range, a half-written file, a transient
+    // error). Remembering the second as "no lineage" strands every
+    // join to this clip as a butt cut for the rest of the session,
+    // which no amount of reloading the strip can undo.
+    let unsure = false;
+    let browser = "";
+    try {
+        m = await readSidecarMeta(sidecarValue(clip));
+        if (!m) browser = "not found (404)";
+    } catch (err) {
+        unsure = true;
+        browser = String(err?.message ?? err);
+    }
+    if (m) return { meta: m, unsure: false, why: "" };
+    // No sidecar (or a broken one, or a read that failed on the way):
+    // ask the server. For a plain video it answers the clip's identity --
+    // the browser cannot work that out itself, hashing means pulling the
+    // whole file across, and without it nothing can name the clip as a
+    // parent, so every join to it degrades to a butt cut. For a sidecar
+    // that pairs it answers the sidecar's own metadata: the browser's
+    // read can fail where the file is fine, and "no latents" is then the
+    // wrong answer.
+    let reason = "";
+    let server = "";
+    try {
+        const resp = await api.fetchApi("/obvpm/h3/clip_meta", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ clip, identity }),
+        });
+        if (resp.ok) {
+            const j = await resp.json();
+            if (j && j.self_id) m = j;
+            reason = j?.no_sidecar_reason ?? "";
+            if (!m && !reason) server = "gave no answer";
+        } else {
+            server = `answered ${resp.status}`;
+        }
+    } catch {
+        server = "could not be reached"; // offline: butt joins, as before
+    }
+    let why;
+    if (m && !m.no_sidecar) {
+        why = "sidecar read by the server -- the browser's own read of it "
+            + `failed (${browser})`;
+    } else if (reason) {
+        why = TL_NO_SIDECAR_REASON[reason] ?? `no usable sidecar (${reason})`;
+    } else if (m) {
+        why = "no usable .mctx.safetensors";   // an older server: no reason
+    } else {
+        why = `could not be checked: the browser's read failed (${browser}) `
+            + `and the server ${server}`;
+    }
+    // A plain video is ordinary; everything else is worth one console line.
+    if (reason !== "missing" && !tlMetaWarned.has(clip)) {
+        tlMetaWarned.add(clip);
+        console.warn(`[obvpm h3] ${clip}: ${why}`);
+    }
+    // a reason from the server is a settled answer, even without a meta
+    // (the badge asks without identity, so a plain video gets none)
+    return { meta: m, unsure: unsure && !m && !reason, why };
+}
+
 const tlMetaCache = new Map();
 async function tlClipMeta(clip) {
     if (!tlMetaCache.has(clip)) {
-        let m = null;
-        // Told apart deliberately: readSidecarMeta returns null when
-        // there IS no sidecar (a plain video -- a settled answer worth
-        // remembering) and THROWS when one is there but could not be
-        // read (a stale cached range, a half-written file, a transient
-        // error). Remembering the second as "no lineage" strands every
-        // join to this clip as a butt cut for the rest of the session,
-        // which no amount of reloading the strip can undo.
-        let unsure = false;
-        try {
-            m = await readSidecarMeta(sidecarValue(clip));
-        } catch { unsure = true; }
-        // No sidecar (or a broken one): ask the server for the clip's
-        // identity instead. The browser cannot work this out itself --
-        // hashing means pulling the whole file across -- and without it
-        // a plain video has no self_id, so nothing can name it as a
-        // parent and every join to it degrades to a butt cut.
-        if (!m) {
-            try {
-                const resp = await api.fetchApi("/obvpm/h3/clip_meta", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ clip }),
-                });
-                if (resp.ok) {
-                    const j = await resp.json();
-                    if (j && j.self_id) m = j;
-                }
-            } catch { /* offline/older server: butt joins, as before */ }
-        }
-        if (m || !unsure) tlMetaCache.set(clip, m);
-        return m;
+        const { meta, unsure, why } = await clipMetaFresh(clip);
+        tlMetaWhyMap.set(clip, why);
+        if (meta || !unsure) tlMetaCache.set(clip, meta);
+        return meta;
     }
     return tlMetaCache.get(clip);
 }
@@ -5137,7 +5204,11 @@ app.registerExtension({
                     }
                     return "";
                 }
-                return String(v).trim().replace(/^\/+|\/+$/g, "");
+                // "projects\V_Project" is the same folder as
+                // "projects/V_Project" (the save nodes write it with "/"),
+                // and the picker scopes by comparing against "/" paths
+                return String(v).trim().replace(/\\/g, "/")
+                    .replace(/^\/+|\/+$/g, "");
             }
             // The seam-repair settings, sent with every build. They are
             // part of the server's cache key, so changing one rebuilds
@@ -6991,8 +7062,10 @@ app.registerExtension({
                         gap: "3px", cursor: "pointer", color: PAL.text,
                         overflow: "hidden",
                     });
+                    const why = tlMetaWhy(e.clip);
                     block.title = (i ? e.seam?.note + "\n" : "") +
                         (tlHasSidecar(e.meta) ? "mctx ✓" : "no mctx") +
+                        (why ? " -- " + why : "") +
                         (e.enter || e.exit !== null
                             ? `\nplays ${e.enter}..${e.exit ?? (delivered || "end")}`
                             : "") +
@@ -7061,13 +7134,14 @@ app.registerExtension({
                     // 9px text off vertical center
                     mbadge.textContent = tlHasSidecar(e.meta)
                         ? "mctx" : "no mctx";
-                    mbadge.title = tlHasSidecar(e.meta)
+                    mbadge.title = (tlHasSidecar(e.meta)
                         ? "verified mctx sidecar"
                         : "no mctx sidecar: no latents to slice, so pins "
                           + "from this clip are VAE-encoded from its "
                           + "pixels. It can still be named as a parent -- "
                           + "takes made from it link to it and their seams "
-                          + "are repairable.";
+                          + "are repairable.")
+                        + (why ? "\n\nWhy: " + why + "." : "");
                     const subRow = document.createElement("div");
                     Object.assign(subRow.style, {
                         display: "flex", gap: "5px",
@@ -8491,8 +8565,11 @@ function rpFolderOf(clip) {
 // below goes through it, because a scope built by one rule and matched by
 // another is silently unmatchable (which is exactly how this broke).
 function rpJoinPrefix(folder, name) {
-    const f = String(folder ?? "").trim().replace(/^[/\\]+|[/\\]+$/g, "");
-    const n = String(name ?? "").trim().replace(/^[/\\]+/, "");
+    // "\" is a separator too (the save nodes write it as "/"), so a
+    // folder typed Windows-style still matches the saved paths
+    const f = String(folder ?? "").trim().replace(/\\/g, "/")
+        .replace(/^\/+|\/+$/g, "");
+    const n = String(name ?? "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
     return f && n ? `${f}/${n}` : (f || n);
 }
 

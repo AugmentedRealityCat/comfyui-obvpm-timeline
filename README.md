@@ -16,6 +16,12 @@ If these nodes and workflows save you time, consider supporting their developmen
 
 ## Updates
 
+### Latest HEAD
+
+- Fixed ([#15](https://github.com/chanon/comfyui-obvpm-timeline/issues/15)): clips could show **no mctx** (and extends fell back to the pixel route, with no loop option) although their `.mctx.safetensors` was right beside them, when the browser could not read the sidecar itself. The server now answers for it, and a clip without a usable sidecar says why in its tooltip: no sidecar, a sidecar that no longer matches the video, or one that could not be read.
+- Takes extended or prepended from a clip in another folder now record where that clip was, so Result Preview can show them together instead of the take alone.
+- A `base_folder` typed with backslashes (`projects\my_project`) now works like `projects/my_project`. The Timeline's clip menu used to find nothing in it.
+
 ### Workflow v0.1.1-005 (2026-09-27)
 
 - New workflow [`h3_obvpm_timeline_r2v_v0.1.1-005.json`](workflows/h3_obvpm_timeline_r2v_v0.1.1-005.json). It runs on this pack's 0.1.1.

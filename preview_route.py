@@ -48,7 +48,7 @@ from . import levellock
 from . import mctx
 from . import nodes_assemble as na
 from . import yuv
-from .nodes_save import H3SaveVideoWithMCtx
+from .nodes_save import H3SaveVideoWithMCtx, folder_text
 
 _LOG = logging.getLogger("obvpm.h3")
 
@@ -131,7 +131,7 @@ def _preview_paths(base_folder, preview_filename):
     rule as the sequence paths).
     """
     name = str(preview_filename or DEFAULT_PREVIEW_NAME).strip().strip("/")
-    sub = str(base_folder or "").strip().strip("/")
+    sub = folder_text(base_folder)
     rel = "%s/%s" % (sub, name) if sub else name
     root = os.path.abspath(folder_paths.get_output_directory())
     path = os.path.abspath(os.path.join(root, rel + ".mp4"))
@@ -1155,7 +1155,7 @@ def export_cut(sequence, crf, base_folder, preview_filename,
         preview_filename=preview_filename, **fixes)
     src = os.path.join(folder_paths.get_output_directory(), sub, name)
     prefix = str(export_filename_prefix or "full").strip().strip("/")
-    folder = str(base_folder or "").strip().strip("/")
+    folder = folder_text(base_folder)
     if folder:
         prefix = "%s/%s" % (folder, prefix)
     full_folder, base, counter, subfolder, _ = folder_paths.get_save_image_path(
@@ -1169,8 +1169,9 @@ def export_cut(sequence, crf, base_folder, preview_filename,
     return rel, cached
 
 
-def plain_clip_meta(clip):
-    """Identity + length for a clip with NO trustworthy sidecar.
+def plain_clip_meta(clip, identity=True):
+    """The clip's header as the server sees it: the sidecar's, or a
+    synthetic identity + length when there is no trustworthy sidecar.
 
     The browser reads a real sidecar itself, with a ranged request for
     the safetensors header -- that is what keeps scanning a folder cheap
@@ -1179,19 +1180,38 @@ def plain_clip_meta(clip):
     the whole file across. So the one thing the browser cannot work out
     for itself is the one thing this route answers.
 
-    Returns None when the clip HAS a usable sidecar (the browser already
-    has the better answer) or cannot be read at all.
+    It is ALSO asked when the browser's own read failed (issue #15: every
+    clip showed "no mctx" although its sidecar was there and paired). So
+    a sidecar that pairs is answered in full -- the same metadata the
+    browser would have read -- rather than with nothing, which the
+    browser could only take as "no latents". A synthetic header says why
+    in `no_sidecar_reason`: "missing", "mismatch" (the video changed
+    since the take was saved) or "unreadable".
+
+    `identity=False` skips the synthetic header (probe + hash of the
+    video) and answers only {"no_sidecar", "no_sidecar_reason"}: the
+    loader badge asks on every selection, and a plain video is not worth
+    hashing just to colour a badge.
     """
     from . import nodes_load
     path = nodes_load.resolve_clip_path(clip)
     side = mctx.sidecar_path(path)
+    reason = "missing"
     if os.path.isfile(side):
         try:
-            if mctx.read_header(side).get("self_id") ==                     nodes_load._cached_hash(path):
-                return None
-        except Exception:
-            pass
-    return nodes_load.synthetic_header(path)
+            header = mctx.read_header(side)
+        except Exception as exc:
+            _LOG.info("obvpm.h3: %s: sidecar unreadable: %s", clip, exc)
+            reason = "unreadable"
+        else:
+            if header.get("self_id") == nodes_load._cached_hash(path):
+                return dict(header)
+            reason = "mismatch"
+    if not identity:
+        return {"no_sidecar": "1", "no_sidecar_reason": reason}
+    meta = nodes_load.synthetic_header(path)
+    meta["no_sidecar_reason"] = reason
+    return meta
 
 
 def video_workflow(path):
@@ -1374,7 +1394,8 @@ def register():
         try:
             data = await request.json()
             clip = str(data.get("clip", ""))
-            found = await asyncio.to_thread(plain_clip_meta, clip)
+            identity = data.get("identity", True) is not False
+            found = await asyncio.to_thread(plain_clip_meta, clip, identity)
             return web.json_response(found or {})
         except Exception as exc:
             # info, not exception: asking about a clip that has since been

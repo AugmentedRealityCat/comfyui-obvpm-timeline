@@ -312,6 +312,16 @@ class H3MCtxPinSpec:
             "mask_ramp_edge": float(mask_ramp_edge),
             "mask_hold": float(mask_hold),
         }
+        # Where the parent was when it was pinned, as pixel pins record
+        # it. The hash (source_id) still decides what the parent IS; this
+        # only lets it be FOUND again when it does not sit in the take's
+        # own folder (Result Preview scans that folder first) -- a clip
+        # added from outside the project folder. Recorded only for a
+        # bundle loaded from a file: one arriving on a wire from this
+        # run has no location yet.
+        clip = mctx.get("clip")
+        if clip:
+            spec["source_path"] = str(clip).replace("\\", "/")
         return (list(pin_specs or []) + [spec],)
 
 

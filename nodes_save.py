@@ -589,6 +589,16 @@ def read_overlap(clip_path, tail=False):
         OVERLAP_TAIL_BLOB if tail else OVERLAP_BLOB)
 
 
+def folder_text(base_folder):
+    """A base_folder as typed -> "a/b": "/" separators, no edge slashes.
+
+    "projects\\V_Project" names the same folder as "projects/V_Project"
+    on Windows, but the Timeline scopes its picker by comparing text
+    against output-relative paths, which always use "/".
+    """
+    return str(base_folder or "").strip().replace("\\", "/").strip("/")
+
+
 def _save_prefix(base_folder, filename_prefix):
     """Join the folder and the name prefix into one save path.
 
@@ -601,8 +611,11 @@ def _save_prefix(base_folder, filename_prefix):
     must land inside the output root, or the save is refused rather than
     writing somewhere unexpected.
     """
-    base = str(base_folder or "").strip().strip("/\\")
-    prefix = str(filename_prefix or "").strip().lstrip("/\\")
+    # Backslashes are folder separators too (a Windows habit): written
+    # as "/" so every consumer -- the Timeline's picker scoping, the
+    # Result Preview's path matching -- sees one spelling.
+    base = folder_text(base_folder)
+    prefix = str(filename_prefix or "").strip().replace("\\", "/").lstrip("/")
     rel = "%s/%s" % (base, prefix) if base and prefix else (base or prefix)
     if not rel:
         raise ValueError(

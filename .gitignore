@@ -6,5 +6,8 @@ desktop.ini
 
 private/
 
+# Obsidian vault settings (notes opened in Obsidian)
+.obsidian/
+
 # cygwin/git-bash crash dumps -- land wherever the shell was cwd'd
 *.stackdump
