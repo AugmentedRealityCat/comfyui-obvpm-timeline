@@ -16,6 +16,15 @@ If these nodes and workflows save you time, consider supporting their developmen
 
 ## Updates
 
+### Workflow v0.1.1-005 (2026-09-27)
+
+- New workflow [`h3_obvpm_timeline_r2v_v0.1.1-005.json`](workflows/h3_obvpm_timeline_r2v_v0.1.1-005.json). It runs on this pack's 0.1.1.
+- **Needs [comfyui-obvpm](https://github.com/chanon/comfyui-obvpm) 0.2.9 or newer.** Update it before loading the workflow.
+- **Compatibility Check node**: when the workflow loads, it checks your ComfyUI version and every custom node pack the workflow uses, and lists anything missing or too old with a link to update it. Its **Copy Report** button copies the details for a bug report.
+- Settings Presets: every setting has a tooltip, and the turbo LoRA and strength are only shown when a turbo loader is selected.
+- Fixed: the `lightx2v` generation preset had its turbo loader set to off, so its LoRA was never loaded.
+- A little bit less Get/Set nodes as Bundle and Unbundle can now Get/Set by themselves
+
 ### 0.1.1 (2026-09-23)
 
 - **Update [comfyui-obvpm](https://github.com/chanon/comfyui-obvpm) to the latest version (0.2.5 or newer) as well.** It fixes compatibility bugs the timeline workflow runs into: presets not switching on ComfyUI frontend 1.53 (ComfyUI 0.37), Bundle pin names on a non-English frontend, and the "Converting circular structure to JSON" error when loading the workflow from a saved video with Nodes 2.0 on ComfyUI 0.36.
@@ -81,15 +90,15 @@ Every generated clip is saved together with a motion context file (`.mctx`) that
 
 The workflows use these custom node packs, so install all of them:
 
-| Custom node pack                                                                                       | Used for                                                             |
-| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| [comfyui-obvpm-timeline](https://github.com/chanon/comfyui-obvpm-timeline) (this pack)                 | The Timeline node, pins, joint render, upscale pass, result preview  |
-| [comfyui-obvpm](https://github.com/chanon/comfyui-obvpm) (0.2.5 or newer)                              | Bundles, Settings Presets, switches and gates, Load Images & Compose |
-| [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes)                                            | Set / Get nodes, model preview override, Sage attention patch        |
-| [Comfyui_Minimax_h3_latent_Upscaler](https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler) | The latent upscaler used by the upscale pass                         |
-| [ComfyUI-MiniMax-H3-Turbo](https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo)                       | Turbo LoRA loader for larryvrh turbo                                 |
-| [ComfyUI-Spectrum-MiniMax-H3](https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3)                   | Spectrum acceleration                                                |
-| [rgthree-comfy](https://github.com/rgthree/rgthree-comfy)                                              | Power Lora Loader                                                    |
+| Custom node pack                                                                                       | Used for                                                                                  |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| [comfyui-obvpm-timeline](https://github.com/chanon/comfyui-obvpm-timeline) (this pack)                 | The Timeline node, pins, joint render, upscale pass, result preview                       |
+| [comfyui-obvpm](https://github.com/chanon/comfyui-obvpm) (0.2.9 or newer)                              | Bundles, Settings Presets, switches and gates, Load Images & Compose, Compatibility Check |
+| [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes)                                            | Set / Get nodes, model preview override, Sage attention patch                             |
+| [Comfyui_Minimax_h3_latent_Upscaler](https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler) | The latent upscaler used by the upscale pass                                              |
+| [ComfyUI-MiniMax-H3-Turbo](https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo)                       | Turbo LoRA loader for larryvrh turbo                                                      |
+| [ComfyUI-Spectrum-MiniMax-H3](https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3)                   | Spectrum acceleration                                                                     |
+| [rgthree-comfy](https://github.com/rgthree/rgthree-comfy)                                              | Power Lora Loader                                                                         |
 
 ### IMPORTANT Compatibility Warnings
 
@@ -122,7 +131,7 @@ Restart ComfyUI. No extra Python dependencies are required.
 
 ## Workflow
 
-The workflow is available in the [workflows](https://github.com/chanon/comfyui-obvpm-timeline/tree/main/workflows) folder.
+The workflow is available in the [workflows](https://github.com/chanon/comfyui-obvpm-timeline/tree/main/workflows) folder. Use the latest, `h3_obvpm_timeline_r2v_v0.1.1-005.json`; the older `-004` is kept for setups that cannot update comfyui-obvpm to 0.2.9 yet.
 
 ## Other Notes
 
