@@ -16,31 +16,41 @@ If these nodes and workflows save you time, consider supporting their developmen
 
 ## Updates
 
-### Latest HEAD
+### Workflow Updates
 
-- Fixed ([#15](https://github.com/chanon/comfyui-obvpm-timeline/issues/15)): clips could show **no mctx** (and extends fell back to the pixel route, with no loop option) although their `.mctx.safetensors` was right beside them, when the browser could not read the sidecar itself. The server now answers for it, and a clip without a usable sidecar says why in its tooltip: no sidecar, a sidecar that no longer matches the video, or one that could not be read.
-- Takes extended or prepended from a clip in another folder now record where that clip was, so Result Preview can show them together instead of the take alone.
-- A `base_folder` typed with backslashes (`projects\my_project`) now works like `projects/my_project`. The Timeline's clip menu used to find nothing in it.
+#### v0.1.1-006 (2026-09-28)
 
-### Workflow v0.1.1-005 (2026-09-27)
+- New workflow [`h3_obvpm_timeline_r2v_v0.1.1-006.json`](workflows/h3_obvpm_timeline_r2v_v0.1.1-006.json). It runs on this pack's 0.1.1, with the same requirements as 005.
+- **New latent upscaler model:** the upscale pass now uses `minimax_h3_latent_upscaler_3d_conv_v1_fp16.safetensors` (the previous file is no longer published). Download it from [Hugging Face](https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler/blob/main/minimax_h3_latent_upscaler_3d_conv_v1/minimax_h3_latent_upscaler_3d_conv_v1_fp16.safetensors) into `ComfyUI/models/latent_upscale_models/`.
+- Fixed: an engine preset's `shift_video` did not change the noise schedule (the scheduler always used the model's built-in shift of 12, and the preset value only affected the audio). The shift is now applied once, in H3 Model Optimization, so it shapes the schedule and the sparse attention window too. The included presets all use 12, so their results are unchanged.
 
-- New workflow [`h3_obvpm_timeline_r2v_v0.1.1-005.json`](workflows/h3_obvpm_timeline_r2v_v0.1.1-005.json). It runs on this pack's 0.1.1.
+#### v0.1.1-005 (2026-09-27)
+
+- New workflow `h3_obvpm_timeline_r2v_v0.1.1-005.json`. It runs on this pack's 0.1.1.
 - **Needs [comfyui-obvpm](https://github.com/chanon/comfyui-obvpm) 0.2.9 or newer.** Update it before loading the workflow.
 - **Compatibility Check node**: when the workflow loads, it checks your ComfyUI version and every custom node pack the workflow uses, and lists anything missing or too old with a link to update it. Its **Copy Report** button copies the details for a bug report.
 - Settings Presets: every setting has a tooltip, and the turbo LoRA and strength are only shown when a turbo loader is selected.
 - Fixed: the `lightx2v` generation preset had its turbo loader set to off, so its LoRA was never loaded.
 - A little bit less Get/Set nodes as Bundle and Unbundle can now Get/Set by themselves
 
-### 0.1.1 (2026-09-23)
+Full history in [workflows/README.md](workflows/README.md)
+
+### comfyui-obvpm-timeline Custom Node Pack Updates
+
+#### Latest HEAD
+
+- Fixed ([#15](https://github.com/chanon/comfyui-obvpm-timeline/issues/15)): clips could show **no mctx** (and extends fell back to the pixel route, with no loop option) although their `.mctx.safetensors` was right beside them, when the browser could not read the sidecar itself. The server now answers for it, and a clip without a usable sidecar says why in its tooltip: no sidecar, a sidecar that no longer matches the video, or one that could not be read.
+- Takes extended or prepended from a clip in another folder now record where that clip was, so Result Preview can show them together instead of the take alone.
+- A `base_folder` typed with backslashes (`projects\my_project`) now works like `projects/my_project`. The Timeline's clip menu used to find nothing in it.
+
+#### 0.1.1 (2026-09-23)
 
 - **Update [comfyui-obvpm](https://github.com/chanon/comfyui-obvpm) to the latest version (0.2.5 or newer) as well.** It fixes compatibility bugs the timeline workflow runs into: presets not switching on ComfyUI frontend 1.53 (ComfyUI 0.37), Bundle pin names on a non-English frontend, and the "Converting circular structure to JSON" error when loading the workflow from a saved video with Nodes 2.0 on ComfyUI 0.36.
 - Fixed: upscaling a timeline short enough to fit in one sampling window (about 7.8 s at the default window of 39) failed at the refine sampler with `TypeError: list indices must be integers or slices, not NoneType`. Longer timelines were not affected.
 - The Timeline node refuses to run on a ComfyUI or comfyui-obvpm too old for the workflow (ComfyUI 0.35.0, comfyui-obvpm 0.2.5), saying what to update and where, instead of failing downstream.
 - The package published to the Comfy Registry no longer contains the tests and CI helpers, only the pack itself (`.comfyignore`).
 
-### 0.1.0 (2026-09-21)
-
-- First release.
+Full change history in [CHANGELOG.md](CHANGELOG.md)
 
 ## Watch the Tutorial
 
@@ -137,7 +147,7 @@ Restart ComfyUI. No extra Python dependencies are required.
 
 ## Workflow
 
-The workflow is available in the [workflows](https://github.com/chanon/comfyui-obvpm-timeline/tree/main/workflows) folder. Use the latest, `h3_obvpm_timeline_r2v_v0.1.1-005.json`; the older `-004` is kept for setups that cannot update comfyui-obvpm to 0.2.9 yet.
+The workflow is available in the [workflows](https://github.com/chanon/comfyui-obvpm-timeline/tree/main/workflows) folder. Use the latest, `h3_obvpm_timeline_r2v_v0.1.1-006.json` (it needs the new latent upscaler model, see [the workflow changelog](workflows/README.md)); the older `-004` is kept for setups that cannot update comfyui-obvpm to 0.2.9 yet.
 
 ## Other Notes
 
